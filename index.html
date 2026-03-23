@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quest Log</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Fira+Code:wght@400;600&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-deep: #0a0e17;
+  --bg-card: #111827;
+  --bg-card-hover: #1a2236;
+  --bg-input: #0d1322;
+  --border: #1e293b;
+  --border-glow: #334155;
+  --text: #e2e8f0;
+  --text-dim: #64748b;
+  --text-bright: #f8fafc;
+  --accent: #f59e0b;
+  --accent-glow: #fbbf2480;
+  --xp-bar: linear-gradient(90deg, #f59e0b, #ef4444);
+  --hp-bar: linear-gradient(90deg, #22c55e, #4ade80);
+  --streak-color: #f97316;
+  --legendary: #a855f7;
+  --epic: #ec4899;
+  --rare: #3b82f6;
+  --uncommon: #22c55e;
+  --common: #94a3b8;
+  --trivial: #64748b;
+  --shadow-glow: 0 0 40px rgba(245, 158, 11, 0.08);
+  --radius: 12px;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Nunito', sans-serif;
+  background: var(--bg-deep);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(245, 158, 11, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 100%, rgba(168, 85, 247, 0.04) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.app { position: relative; z-index: 1; max-width: 800px; margin: 0 auto; padding: 24px 16px 80px; }
+
+/* ── HEADER ── */
+.header {
+  text-align: center;
+  margin-bottom: 32px;
+  animation: fadeDown 0.6s ease;
+}
+.header h1 {
+  font-family: 'Cinzel', serif;
+  font-weight: 900;
+  font-size: 2.4rem;
+  background: linear-gradient(135deg, #f59e0b, #ef4444, #a855f7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.header .subtitle {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-top: 4px;
+  letter-spacing: 1px;
+}
+
+/* ── LEVEL / XP PANEL ── */
+.stats-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-glow);
+  animation: fadeUp 0.5s ease;
+}
+.stats-top {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.level-badge {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #f59e0b, #ef4444, #a855f7, #3b82f6, #f59e0b);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  animation: spinSlow 6s linear infinite;
+  position: relative;
+}
+.level-badge-inner {
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  background: var(--bg-deep);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+.level-badge-inner .lvl-label {
+  font-size: 0.55rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+.level-badge-inner .lvl-num {
+  font-family: 'Cinzel', serif;
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.stats-info { flex: 1; min-width: 180px; }
+.stats-info .player-title {
+  font-family: 'Cinzel', serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+.stats-info .player-rank {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
+.xp-bar-wrapper {
+  background: var(--bg-input);
+  border-radius: 20px;
+  height: 22px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.xp-bar-fill {
+  height: 100%;
+  background: var(--xp-bar);
+  border-radius: 20px;
+  transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+}
+.xp-bar-fill::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 50%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.2), transparent);
+  border-radius: 20px 20px 0 0;
+}
+.xp-bar-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Fira Code', monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text-bright);
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+  white-space: nowrap;
+}
+
+.stats-chips {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.chip {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.78rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  min-width: 90px;
+}
+.chip .chip-val {
+  font-family: 'Fira Code', monospace;
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: var(--text-bright);
+}
+.chip .chip-label {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.chip.streak .chip-val { color: var(--streak-color); }
+.chip.total-xp .chip-val { color: var(--accent); }
+.chip.completed .chip-val { color: var(--uncommon); }
+
+/* ── BONUSES RIBBON ── */
+.bonuses {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  animation: fadeUp 0.6s ease 0.1s both;
+}
+.bonus-tag {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.25s;
+}
+.bonus-tag.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 12px var(--accent-glow);
+  color: var(--accent);
+}
+.bonus-tag.inactive { color: var(--text-dim); opacity: 0.5; }
+
+/* ── ADD QUEST FORM ── */
+.add-quest {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 24px;
+  animation: fadeUp 0.6s ease 0.15s both;
+}
+.add-quest h2 {
+  font-family: 'Cinzel', serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 14px;
+  letter-spacing: 1px;
+}
+.form-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.form-row input[type="text"] {
+  flex: 1;
+  min-width: 180px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 0.9rem;
+  color: var(--text);
+  outline: none;
+  transition: border 0.2s;
+}
+.form-row input[type="text"]:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.form-row input[type="text"]::placeholder { color: var(--text-dim); }
+.form-row select {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 0.82rem;
+  color: var(--text);
+  outline: none;
+  cursor: pointer;
+  min-width: 120px;
+}
+.form-row select:focus { border-color: var(--accent); }
+
+.btn-add {
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
+  border: none;
+  border-radius: 8px;
+  padding: 10px 28px;
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #fff;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: all 0.25s;
+  text-transform: uppercase;
+}
+.btn-add:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(245,158,11,0.3); }
+.btn-add:active { transform: translateY(0); }
+
+/* ── QUEST LIST ── */
+.quest-section-title {
+  font-family: 'Cinzel', serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin: 28px 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.quest-section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.quest-list { display: flex; flex-direction: column; gap: 8px; }
+
+.quest-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.25s;
+  animation: fadeIn 0.35s ease;
+  position: relative;
+  overflow: hidden;
+}
+.quest-item:hover { background: var(--bg-card-hover); border-color: var(--border-glow); }
+.quest-item.completed-quest {
+  opacity: 0.45;
+  border-style: dashed;
+}
+.quest-item.completed-quest .quest-name { text-decoration: line-through; }
+
+.quest-diff-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.quest-body { flex: 1; min-width: 0; }
+.quest-name {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--text-bright);
+  margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.quest-meta {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.quest-xp {
+  font-family: 'Fira Code', monospace;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.btn-complete {
+  background: none;
+  border: 2px solid var(--uncommon);
+  border-radius: 50%;
+  width: 32px; height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--uncommon);
+  font-size: 1rem;
+  transition: all 0.25s;
+  flex-shrink: 0;
+}
+.btn-complete:hover { background: var(--uncommon); color: var(--bg-deep); transform: scale(1.15); }
+
+.btn-delete {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 4px;
+  opacity: 0;
+  transition: all 0.2s;
+}
+.quest-item:hover .btn-delete { opacity: 1; }
+.btn-delete:hover { color: #ef4444; }
+
+/* ── EMPTY STATE ── */
+.empty-state {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+.empty-state .empty-icon { font-size: 3rem; margin-bottom: 12px; display: block; }
+
+/* ── XP POPUP ── */
+.xp-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  background: var(--bg-card);
+  border: 2px solid var(--accent);
+  border-radius: 16px;
+  padding: 32px 48px;
+  text-align: center;
+  z-index: 1000;
+  box-shadow: 0 0 80px var(--accent-glow), 0 25px 60px rgba(0,0,0,0.5);
+  pointer-events: none;
+}
+.xp-popup.show {
+  animation: popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
+             popOut 0.4s ease 1.5s forwards;
+}
+.xp-popup .popup-xp {
+  font-family: 'Cinzel', serif;
+  font-size: 2.5rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.xp-popup .popup-detail {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+/* ── LEVEL UP OVERLAY ── */
+.level-up-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeIn 0.3s ease;
+  pointer-events: none;
+}
+.level-up-card {
+  text-align: center;
+  animation: levelUpBounce 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.level-up-card .lu-icon { font-size: 4rem; margin-bottom: 8px; display: block; }
+.level-up-card .lu-text {
+  font-family: 'Cinzel', serif;
+  font-size: 2rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #f59e0b, #ef4444, #a855f7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: 3px;
+}
+.level-up-card .lu-level {
+  font-family: 'Cinzel', serif;
+  font-size: 3.5rem;
+  font-weight: 900;
+  color: var(--accent);
+  display: block;
+  margin-top: 4px;
+  text-shadow: 0 0 40px var(--accent-glow);
+}
+.level-up-card .lu-rank {
+  font-size: 0.9rem;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+/* ── PARTICLES ── */
+.particle {
+  position: fixed;
+  pointer-events: none;
+  z-index: 3000;
+  font-size: 1.2rem;
+  animation: particleFly 1s ease-out forwards;
+}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeDown { from { opacity:0; transform: translateY(-20px); } to { opacity:1; transform: translateY(0); } }
+@keyframes fadeUp { from { opacity:0; transform: translateY(20px); } to { opacity:1; transform: translateY(0); } }
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+@keyframes spinSlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes popIn { from { transform: translate(-50%,-50%) scale(0); opacity:0; } to { transform: translate(-50%,-50%) scale(1); opacity:1; } }
+@keyframes popOut { from { transform: translate(-50%,-50%) scale(1); opacity:1; } to { transform: translate(-50%,-50%) scale(0.8); opacity:0; } }
+@keyframes levelUpBounce { 0% { transform: scale(0); opacity:0; } 60% { transform: scale(1.15); opacity:1; } 100% { transform: scale(1); } }
+@keyframes particleFly {
+  0% { opacity:1; transform: translate(0,0) scale(1); }
+  100% { opacity:0; transform: translate(var(--px), var(--py)) scale(0); }
+}
+@keyframes questComplete {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.03); }
+  100% { transform: scale(1); opacity: 0.45; }
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <div class="header">
+    <h1>Quest Log</h1>
+    <div class="subtitle">Complete quests. Earn XP. Level up.</div>
+  </div>
+
+  <!-- STATS PANEL -->
+  <div class="stats-panel" id="statsPanel">
+    <div class="stats-top">
+      <div class="level-badge">
+        <div class="level-badge-inner">
+          <span class="lvl-label">LVL</span>
+          <span class="lvl-num" id="levelNum">1</span>
+        </div>
+      </div>
+      <div class="stats-info">
+        <div class="player-title" id="playerTitle">Novice Adventurer</div>
+        <div class="player-rank" id="playerRank">Rank: Apprentice</div>
+        <div class="xp-bar-wrapper">
+          <div class="xp-bar-fill" id="xpBarFill" style="width: 0%"></div>
+          <div class="xp-bar-text" id="xpBarText">0 / 100 XP</div>
+        </div>
+      </div>
+    </div>
+    <div class="stats-chips">
+      <div class="chip streak">
+        <span class="chip-val" id="streakVal">0🔥</span>
+        <span class="chip-label">Streak</span>
+      </div>
+      <div class="chip total-xp">
+        <span class="chip-val" id="totalXpVal">0</span>
+        <span class="chip-label">Total XP</span>
+      </div>
+      <div class="chip completed">
+        <span class="chip-val" id="completedVal">0</span>
+        <span class="chip-label">Completed</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- BONUSES -->
+  <div class="bonuses" id="bonusRibbon"></div>
+
+  <!-- ADD QUEST -->
+  <div class="add-quest">
+    <h2>⚔ New Quest</h2>
+    <div class="form-row">
+      <input type="text" id="questInput" placeholder="Describe your quest..." maxlength="120">
+    </div>
+    <div class="form-row">
+      <select id="diffSelect"></select>
+      <select id="catSelect"></select>
+      <button class="btn-add" id="btnAdd">Add Quest</button>
+    </div>
+  </div>
+
+  <!-- ACTIVE QUESTS -->
+  <div class="quest-section-title" id="activeTitle">Active Quests <span id="activeCount"></span></div>
+  <div class="quest-list" id="activeList"></div>
+
+  <!-- COMPLETED QUESTS -->
+  <div class="quest-section-title" id="completedTitle" style="display:none;">Completed Quests</div>
+  <div class="quest-list" id="completedList"></div>
+</div>
+
+<!-- XP POPUP -->
+<div class="xp-popup" id="xpPopup">
+  <div class="popup-xp" id="popupXp"></div>
+  <div class="popup-detail" id="popupDetail"></div>
+</div>
+
+<script>
+// ── CONFIG ──
+const DIFFICULTIES = [
+  { label: "Trivial", xp: 10, color: "#64748b" },
+  { label: "Easy", xp: 25, color: "#22c55e" },
+  { label: "Medium", xp: 50, color: "#facc15" },
+  { label: "Hard", xp: 100, color: "#f97316" },
+  { label: "Epic", xp: 200, color: "#a855f7" },
+  { label: "Legendary", xp: 500, color: "#ef4444" },
+];
+const CATEGORIES = ["General", "Work", "Health", "Learning", "Creative", "Social"];
+const CAT_ICONS = { General: "📋", Work: "💼", Health: "💪", Learning: "📚", Creative: "🎨", Social: "🤝" };
+const RANKS = [
+  [1,"Apprentice"],[5,"Journeyman"],[10,"Adept"],[15,"Veteran"],[20,"Elite"],
+  [25,"Master"],[30,"Grandmaster"],[40,"Champion"],[50,"Legend"],[75,"Mythic"],[100,"Immortal"]
+];
+const TITLES = [
+  [1,"Novice Adventurer"],[3,"Aspiring Hero"],[5,"Questbound"],[8,"Dungeon Crawler"],
+  [12,"Blade of Purpose"],[16,"Arcane Seeker"],[20,"Dragonsworn"],
+  [25,"Keeper of Flames"],[30,"Stormbringer"],[40,"Worldshaper"],
+  [50,"Celestial"],[75,"Ascendant"],[100,"The Eternal"]
+];
+
+function xpForLevel(lvl) { return Math.floor(80 * Math.pow(lvl, 1.55)); }
+function getRank(lvl) { let r="Apprentice"; for (const [l,t] of RANKS) if (lvl>=l) r=t; return r; }
+function getTitle(lvl) { let r="Novice Adventurer"; for (const [l,t] of TITLES) if (lvl>=l) r=t; return r; }
+
+// ── STATE ──
+let state = {
+  level: 1,
+  currentXp: 0,
+  totalXp: 0,
+  streak: 0,
+  lastCompletedDate: null,
+  totalCompleted: 0,
+  quests: [],
+  completedQuests: []
+};
+
+// ── PERSISTENCE ──
+async function saveState() {
+  try { await window.storage.set('questlog-state', JSON.stringify(state)); } catch(e) { console.warn('Save failed', e); }
+}
+async function loadState() {
+  try {
+    const r = await window.storage.get('questlog-state');
+    if (r && r.value) {
+      const s = JSON.parse(r.value);
+      Object.assign(state, s);
+    }
+  } catch(e) { console.log('No saved state'); }
+}
+
+// ── STREAK LOGIC ──
+function getDateStr(d) { return new Date(d).toISOString().slice(0, 10); }
+function updateStreak() {
+  const today = getDateStr(Date.now());
+  if (!state.lastCompletedDate) {
+    state.streak = 1;
+  } else {
+    const last = getDateStr(state.lastCompletedDate);
+    const yesterday = getDateStr(Date.now() - 86400000);
+    if (last === today) { /* same day, keep streak */ }
+    else if (last === yesterday) { state.streak++; }
+    else { state.streak = 1; }
+  }
+  state.lastCompletedDate = Date.now();
+}
+
+// ── BONUS CALCULATION ──
+function getBonuses() {
+  const bonuses = [];
+  // Streak bonus
+  if (state.streak >= 3) bonuses.push({ name: `🔥 Streak x${state.streak}`, mult: 1 + (state.streak * 0.1), active: true });
+  else bonuses.push({ name: "🔥 Streak x3+", mult: 1, active: false });
+
+  // Weekend warrior
+  const day = new Date().getDay();
+  const isWeekend = day === 0 || day === 6;
+  bonuses.push({ name: "🌙 Weekend Warrior", mult: isWeekend ? 1.25 : 1, active: isWeekend });
+
+  // Early bird (before 9am)
+  const hour = new Date().getHours();
+  bonuses.push({ name: "🌅 Early Bird", mult: hour < 9 ? 1.3 : 1, active: hour < 9 });
+
+  // Night owl (after 10pm)
+  bonuses.push({ name: "🦉 Night Owl", mult: hour >= 22 ? 1.2 : 1, active: hour >= 22 });
+
+  // Completionist (5+ done today)
+  const today = getDateStr(Date.now());
+  const todayCount = state.completedQuests.filter(q => getDateStr(q.completedAt) === today).length;
+  bonuses.push({ name: "⭐ Grinder (5+/day)", mult: todayCount >= 5 ? 1.5 : 1, active: todayCount >= 5 });
+
+  return bonuses;
+}
+
+function getTotalMultiplier() {
+  return getBonuses().reduce((m, b) => m * (b.active ? b.mult : 1), 1);
+}
+
+// ── RENDERING ──
+function renderStats() {
+  const needed = xpForLevel(state.level);
+  const pct = Math.min((state.currentXp / needed) * 100, 100);
+  document.getElementById('levelNum').textContent = state.level;
+  document.getElementById('playerTitle').textContent = getTitle(state.level);
+  document.getElementById('playerRank').textContent = `Rank: ${getRank(state.level)}`;
+  document.getElementById('xpBarFill').style.width = pct + '%';
+  document.getElementById('xpBarText').textContent = `${state.currentXp} / ${needed} XP`;
+  document.getElementById('streakVal').textContent = state.streak + '🔥';
+  document.getElementById('totalXpVal').textContent = state.totalXp.toLocaleString();
+  document.getElementById('completedVal').textContent = state.totalCompleted;
+}
+
+function renderBonuses() {
+  const container = document.getElementById('bonusRibbon');
+  container.innerHTML = getBonuses().map(b =>
+    `<div class="bonus-tag ${b.active ? 'active' : 'inactive'}">${b.name}${b.active ? ` (${b.mult}x)` : ''}</div>`
+  ).join('');
+}
+
+function renderQuests() {
+  const activeList = document.getElementById('activeList');
+  const completedList = document.getElementById('completedList');
+  const completedTitle = document.getElementById('completedTitle');
+  document.getElementById('activeCount').textContent = `(${state.quests.length})`;
+
+  if (state.quests.length === 0) {
+    activeList.innerHTML = `<div class="empty-state"><span class="empty-icon">⚔️</span>No active quests.<br>Add one above to begin your adventure!</div>`;
+  } else {
+    activeList.innerHTML = state.quests.map((q, i) => {
+      const d = DIFFICULTIES[q.diff];
+      const mult = getTotalMultiplier();
+      const effectiveXp = Math.round(d.xp * mult);
+      return `<div class="quest-item" data-index="${i}">
+        <div class="quest-diff-dot" style="color:${d.color};background:${d.color}"></div>
+        <div class="quest-body">
+          <div class="quest-name">${escHtml(q.name)}</div>
+          <div class="quest-meta">
+            <span>${CAT_ICONS[q.cat] || '📋'} ${q.cat}</span>
+            <span>${d.label}</span>
+          </div>
+        </div>
+        <div class="quest-xp" style="color:${d.color};background:${d.color}18">+${effectiveXp} XP</div>
+        <button class="btn-complete" onclick="completeQuest(${i})" title="Complete quest">✓</button>
+        <button class="btn-delete" onclick="deleteQuest(${i})" title="Remove quest">✕</button>
+      </div>`;
+    }).join('');
+  }
+
+  // Completed (show last 10)
+  const recent = state.completedQuests.slice(-10).reverse();
+  if (recent.length === 0) {
+    completedTitle.style.display = 'none';
+    completedList.innerHTML = '';
+  } else {
+    completedTitle.style.display = '';
+    completedList.innerHTML = recent.map(q => {
+      const d = DIFFICULTIES[q.diff];
+      return `<div class="quest-item completed-quest">
+        <div class="quest-diff-dot" style="color:${d.color};background:${d.color}"></div>
+        <div class="quest-body">
+          <div class="quest-name">${escHtml(q.name)}</div>
+          <div class="quest-meta">
+            <span>${CAT_ICONS[q.cat] || '📋'} ${q.cat}</span>
+            <span>+${q.xpEarned} XP earned</span>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function renderAll() {
+  renderStats();
+  renderBonuses();
+  renderQuests();
+}
+
+// ── ACTIONS ──
+function addQuest() {
+  const input = document.getElementById('questInput');
+  const name = input.value.trim();
+  if (!name) { input.style.animation = 'shake 0.3s ease'; setTimeout(() => input.style.animation = '', 300); return; }
+  const diff = parseInt(document.getElementById('diffSelect').value);
+  const cat = document.getElementById('catSelect').value;
+  state.quests.push({ name, diff, cat, createdAt: Date.now() });
+  input.value = '';
+  saveState();
+  renderAll();
+}
+
+function deleteQuest(index) {
+  state.quests.splice(index, 1);
+  saveState();
+  renderAll();
+}
+
+function completeQuest(index) {
+  const q = state.quests[index];
+  const d = DIFFICULTIES[q.diff];
+  const mult = getTotalMultiplier();
+  const xpEarned = Math.round(d.xp * mult);
+
+  updateStreak();
+  state.currentXp += xpEarned;
+  state.totalXp += xpEarned;
+  state.totalCompleted++;
+
+  // Level up check
+  let leveled = false;
+  while (state.currentXp >= xpForLevel(state.level)) {
+    state.currentXp -= xpForLevel(state.level);
+    state.level++;
+    leveled = true;
+  }
+
+  // Move to completed
+  state.completedQuests.push({ ...q, xpEarned, completedAt: Date.now() });
+  state.quests.splice(index, 1);
+
+  saveState();
+  renderAll();
+
+  // XP popup
+  showXpPopup(xpEarned, mult, d.label);
+  spawnParticles();
+
+  if (leveled) setTimeout(() => showLevelUp(), 600);
+}
+
+// ── EFFECTS ──
+function showXpPopup(xp, mult, diff) {
+  const el = document.getElementById('xpPopup');
+  document.getElementById('popupXp').textContent = `+${xp} XP`;
+  const parts = [`${diff} quest`];
+  if (mult > 1) parts.push(`${mult.toFixed(1)}x bonus`);
+  document.getElementById('popupDetail').textContent = parts.join(' · ');
+  el.classList.remove('show');
+  void el.offsetWidth;
+  el.classList.add('show');
+}
+
+function showLevelUp() {
+  const overlay = document.createElement('div');
+  overlay.className = 'level-up-overlay';
+  overlay.innerHTML = `<div class="level-up-card">
+    <span class="lu-icon">⚜️</span>
+    <div class="lu-text">LEVEL UP!</div>
+    <span class="lu-level">${state.level}</span>
+    <div class="lu-rank">${getTitle(state.level)} · ${getRank(state.level)}</div>
+  </div>`;
+  document.body.appendChild(overlay);
+  setTimeout(() => { overlay.style.opacity = '0'; overlay.style.transition = 'opacity 0.5s'; setTimeout(() => overlay.remove(), 500); }, 2200);
+}
+
+function spawnParticles() {
+  const emojis = ['✨', '⭐', '💎', '🔥', '⚡'];
+  for (let i = 0; i < 12; i++) {
+    const el = document.createElement('div');
+    el.className = 'particle';
+    el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    el.style.left = `${40 + Math.random() * 20}%`;
+    el.style.top = `${40 + Math.random() * 20}%`;
+    el.style.setProperty('--px', `${(Math.random()-0.5)*300}px`);
+    el.style.setProperty('--py', `${-100 - Math.random()*200}px`);
+    el.style.animationDuration = `${0.6 + Math.random()*0.6}s`;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1200);
+  }
+}
+
+// ── INIT ──
+function initSelects() {
+  const diffSel = document.getElementById('diffSelect');
+  DIFFICULTIES.forEach((d, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = `${d.label} (+${d.xp} XP)`;
+    if (i === 2) opt.selected = true;
+    diffSel.appendChild(opt);
+  });
+  const catSel = document.getElementById('catSelect');
+  CATEGORIES.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c;
+    opt.textContent = `${CAT_ICONS[c]} ${c}`;
+    catSel.appendChild(opt);
+  });
+}
+
+async function init() {
+  initSelects();
+  await loadState();
+
+  // Check if streak broke
+  if (state.lastCompletedDate) {
+    const last = getDateStr(state.lastCompletedDate);
+    const yesterday = getDateStr(Date.now() - 86400000);
+    const today = getDateStr(Date.now());
+    if (last !== today && last !== yesterday) {
+      state.streak = 0;
+      saveState();
+    }
+  }
+
+  renderAll();
+
+  document.getElementById('btnAdd').addEventListener('click', addQuest);
+  document.getElementById('questInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addQuest();
+  });
+}
+
+init();
+</script>
+</body>
+</html>
